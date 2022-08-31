@@ -355,3 +355,37 @@ func (opReturn *OpReturn) SendRawTransaction() (err error) {
 	opReturn.OpRetrunTxID = result.OpReturnTxID
 	return
 }
+
+func (opReturn *OpReturn) Run() (err error) {
+	if err = opReturn.ListUnspentOfAddress(); err != nil {
+		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+
+	if err = opReturn.calAmountUnspents(); err != nil {
+		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+
+	if err = opReturn.createRawTransaction(); err != nil {
+		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+
+	if err = opReturn.dumpPrivateKey(); err != nil {
+		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+
+	if err = opReturn.SignRawTransactionWithKey(); err != nil {
+		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+
+	if err = opReturn.SendRawTransaction(); err != nil {
+		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+
+	return
+}
