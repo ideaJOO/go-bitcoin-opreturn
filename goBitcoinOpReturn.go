@@ -180,17 +180,17 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 func (opReturn *OpReturn) createRawTransaction() (err error) {
 
 	if err = opReturn.CalFee(); err != nil {
-		err = fmt.Errorf("@CreateRawTransaction(): %s", err)
+		err = fmt.Errorf("@createRawTransaction(): %s", err)
 		return
 	}
 
 	if err = opReturn.selectUnspentsForSend(); err != nil {
-		err = fmt.Errorf("@CreateRawTransaction(): %s", err)
+		err = fmt.Errorf("@createRawTransaction(): %s", err)
 		return
 	}
 
 	if err = opReturn.convertTextToHex(); err != nil {
-		err = fmt.Errorf("@CreateRawTransaction(): %s", err)
+		err = fmt.Errorf("@createRawTransaction(): %s", err)
 		return
 	}
 
@@ -216,13 +216,13 @@ func (opReturn *OpReturn) createRawTransaction() (err error) {
 		Params:  []interface{}{createTxUnSpents, tCreateTxData},
 	})
 	if err != nil {
-		err = fmt.Errorf("@CreateRawTransaction: %s", err)
+		err = fmt.Errorf("@createRawTransaction: %s", err)
 		return
 	}
 
 	body, err := opReturn.requestJsonRpc(jsonRpcBytes)
 	if err != nil {
-		err = fmt.Errorf("@CreateRawTransaction: %s", err)
+		err = fmt.Errorf("@createRawTransaction: %s", err)
 		return
 	}
 
@@ -232,7 +232,7 @@ func (opReturn *OpReturn) createRawTransaction() (err error) {
 	result := resultCreateRaxTx{}
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		err = fmt.Errorf("@CreateRawTransaction(): %s", err)
+		err = fmt.Errorf("@createRawTransaction(): %s", err)
 		return
 	}
 
