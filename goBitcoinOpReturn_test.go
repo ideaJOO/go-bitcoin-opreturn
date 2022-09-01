@@ -13,7 +13,7 @@ func TestListUnspentOfAddress(t *testing.T) {
 	opReturn.RpcConnect = "127.0.0.1"
 	opReturn.RpcPort = "18332"
 	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
-	opReturn.ReceiptText = "HELLO ideajoo/go-bitcoin-opreturn "
+	opReturn.ReceiptText = "HELLO ideajoo/go-bitcoin-opreturn!!!!!"
 
 	err := opReturn.Run()
 	if err != nil {
@@ -36,4 +36,23 @@ func TestListUnspentOfAddress(t *testing.T) {
 	// opReturn.SendRawTransaction()
 	// fmt.Printf("\n\n\n%+v\n\n", opReturn)
 
+}
+
+func TestConvertHex(t *testing.T) {
+
+	opReturn := OpReturn{}
+	opReturn.RpcUser = "ideajoo"
+	opReturn.RpcPW = "ideajoo123"
+	opReturn.RpcConnect = "127.0.0.1"
+	opReturn.RpcPort = "18332"
+	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
+	opReturn.ReceiptText = "HELLO ideajoo/go-bitcoin-cli-light"
+
+	err := opReturn.convertTextToHex()
+	if err != nil {
+		return
+	}
+	println()
+	println(opReturn.ReceiptHex)
+	println()
 }

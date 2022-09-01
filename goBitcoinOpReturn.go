@@ -1,14 +1,12 @@
 package gobitcoinopreturn
 
 import (
-	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"net/http"
 	"sort"
+
+	goBitcoinCli "github.com/ideajoo/go-bitcoin-cli-light"
 )
 
 type OpReturn struct {
@@ -21,6 +19,7 @@ type OpReturn struct {
 	ReceiptText               string
 	ReceiptHex                string
 	Unspents                  []Unspent
+	Confirmations             int
 	AmountUnspends            float64
 	Fee                       float64
 	AmountBalanceUsedUnspends float64
@@ -30,10 +29,11 @@ type OpReturn struct {
 }
 
 type Unspent struct {
-	TxID     string
-	Vout     int
-	Amount   float64
-	Expected bool
+	TxID          string
+	Vout          int
+	Amount        float64
+	Confirmations int
+	Expected      bool
 }
 
 type JsonRpc struct {
@@ -43,97 +43,12 @@ type JsonRpc struct {
 	Params  []interface{} `json:"params"`
 }
 
-func (opReturn OpReturn) requestJsonRpc(jsonRpcBytes []byte) (body []byte, err error) {
-
-	request, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/", opReturn.RpcConnect, opReturn.RpcPort), bytes.NewBuffer(jsonRpcBytes))
-	if err != nil {
-		err = fmt.Errorf("@requestJsonRpc: %s", err)
-		return
-	}
-	request.Header.Set("content-type", "text/plain;")
-	request.SetBasicAuth(opReturn.RpcUser, opReturn.RpcPW)
-
-	client := &http.Client{}
-	resp, err := client.Do(request)
-	if err != nil {
-		err = fmt.Errorf("@requestJsonRpc: %s", err)
-		return
-	}
-
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		err = fmt.Errorf("@requestJsonRpc: %s", err)
-		return
-	}
-	return
-}
-
-// ListUnspentOfAddress
-func (opReturn *OpReturn) ListUnspentOfAddress() (err error) {
-
-	type listUnspentInfo struct {
-		TxID          string   `json:"txid"`          // (string) the transaction id
-		Vout          int      `json:"vout"`          // (numeric) the vout value
-		Address       string   `json:"address"`       // (string) the bitcoin address
-		Label         string   `json:"label"`         // (string) The associated label, or "" for the default label
-		ScriptPutKey  string   `json:"scriptPubKey"`  // (string) the script key
-		Amount        float64  `json:"amount"`        // (numeric) the transaction output amount in BTC
-		Confirmations int      `json:"confirmations"` // (numeric) The number of confirmations
-		RedeemScript  string   `json:"redeemScript"`  // (string) The redeemScript if scriptPubKey is P2SH
-		WitnessScript string   `json:"witnessScript"` // (string) witnessScript if the scriptPubKey is P2WSH or P2SH-P2WSH
-		Spendable     bool     `json:"spendable"`     // (boolean) Whether we have the private keys to spend this output
-		Solvable      bool     `json:"solvable"`      // (boolean) Whether we know how to spend this output, ignoring the lack of keys
-		Reused        bool     `json:"reused"`        // (boolean) (only present if avoid_reuse is set) Whether this output is reused/dirty (sent to an address that was previously spent from)
-		Desc          string   `json:"desc"`          // (string) (only when solvable) A descriptor for spending this output
-		ParentDescs   []string `json:"parent_descs"`  //
-		Safe          bool     `json:"safe"`          // (boolean) Whether this output is considered safe to spend. Unconfirmed transactions
-	}
-
-	jsonRpcBytes, err := json.Marshal(JsonRpc{
-		JsonRpc: "1.0",
-		ID:      "GoBitcoinOpReturn",
-		Method:  "listunspent",
-		Params:  []interface{}{1, 9999999, []string{opReturn.Address}},
-	})
-	if err != nil {
-		err = fmt.Errorf("@ListUnspentOfAddress: %s", err)
-		return
-	}
-
-	body, err := opReturn.requestJsonRpc(jsonRpcBytes)
-	if err != nil {
-		err = fmt.Errorf("@ListUnspentOfAddress: %s", err)
-		return
-	}
-
-	type resultListUnspent struct {
-		ListUnspent []listUnspentInfo `json:"result"`
-	}
-	result := resultListUnspent{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		err = fmt.Errorf("@ListUnspentOfAddress(): %s", err)
-		return
-	}
-	opReturn.Unspents = make([]Unspent, 0)
-	for _, listUnspentInfo := range result.ListUnspent {
-		opReturn.Unspents = append(opReturn.Unspents, Unspent{
-			TxID:     listUnspentInfo.TxID,
-			Vout:     listUnspentInfo.Vout,
-			Amount:   math.Round(listUnspentInfo.Amount*100000000) / 100000000,
-			Expected: false,
-		})
-	}
-	sort.Slice(opReturn.Unspents, func(i, j int) bool {
-		return opReturn.Unspents[i].Amount > opReturn.Unspents[j].Amount
-	})
-
-	return
-}
-
 func (opReturn *OpReturn) calAmountUnspents() (err error) {
 	balance := 0.0
 	for _, unspent := range opReturn.Unspents {
+		if unspent.Confirmations < opReturn.Confirmations {
+			continue
+		}
 		balance += unspent.Amount
 	}
 	opReturn.AmountUnspends = math.Round(balance*100000000) / 100000000
@@ -145,10 +60,10 @@ func (opReturn *OpReturn) convertTextToHex() (err error) {
 	return
 }
 
-func (opReturn *OpReturn) CalFee() (err error) {
+func (opReturn *OpReturn) calFee() (err error) {
 
 	// TODO: Cal fee by bytes
-	fee := 0.00010000 // Temp Fee
+	fee := 0.00008000 // Temp Fee
 
 	opReturn.Fee = fee
 	tBalance := math.Round((opReturn.AmountUnspends-fee)*100000000) / 100000000
@@ -166,9 +81,12 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 
 	sumAmountTemp := 0.0
 	for i, unspent := range opReturn.Unspents {
-		if unspent.Amount > 0.0 && sumAmountTemp >= opReturn.Fee {
+		if unspent.Confirmations < opReturn.Confirmations {
 			continue
 		}
+		if unspent.Amount > 0.0 && sumAmountTemp >= opReturn.Fee {
+			continue
+		} // for handle case : unspent.Amount == 0.0
 		opReturn.Unspents[i].Expected = true
 		sumAmountTemp += unspent.Amount
 		sumAmountTemp = math.Round((sumAmountTemp)*100000000) / 100000000
@@ -177,23 +95,60 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	return
 }
 
-func (opReturn *OpReturn) createRawTransaction() (err error) {
+func (opReturn *OpReturn) Run() (err error) {
+	bitcoinCli := goBitcoinCli.BitcoinRpc{
+		RpcUser:    opReturn.RpcUser,
+		RpcPW:      opReturn.RpcPW,
+		RpcConnect: opReturn.RpcConnect,
+		RpcPort:    opReturn.RpcPort,
+	}
 
-	if err = opReturn.CalFee(); err != nil {
-		err = fmt.Errorf("@createRawTransaction(): %s", err)
+	// 1. ListUnspent
+	listUnspents, err := bitcoinCli.ListUnspentOfAddress(opReturn.Address)
+	if err != nil {
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+	opReturn.Unspents = make([]Unspent, 0)
+	for _, lUnspent := range listUnspents {
+		unspent := Unspent{}
+		unspent.TxID = lUnspent["txid"].(string)
+		unspent.Vout = (int)(lUnspent["vout"].(float64))
+		unspent.Amount = lUnspent["amount"].(float64)
+		unspent.Confirmations = (int)(lUnspent["confirmations"].(float64))
+		unspent.Expected = false
+		opReturn.Unspents = append(opReturn.Unspents, unspent)
+	}
+	sort.Slice(opReturn.Unspents, func(i, j int) bool {
+		return opReturn.Unspents[i].Amount > opReturn.Unspents[j].Amount
+	})
+	opReturn.Confirmations = 3
+
+	// 2. calAmountUnspents
+	if err = opReturn.calAmountUnspents(); err != nil {
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
 	}
 
+	// 3. calFee
+	if err = opReturn.calFee(); err != nil {
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		return
+	}
+
+	// 4. selectUnspentsForSend
 	if err = opReturn.selectUnspentsForSend(); err != nil {
-		err = fmt.Errorf("@createRawTransaction(): %s", err)
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
 	}
 
+	// 5. convertTextToHex
 	if err = opReturn.convertTextToHex(); err != nil {
-		err = fmt.Errorf("@createRawTransaction(): %s", err)
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
 	}
 
+	// 6. CreateRawTransaction
 	createTxUnSpents := make([]map[string]interface{}, 0)
 	for _, unspent := range opReturn.Unspents {
 		if !unspent.Expected {
@@ -204,186 +159,32 @@ func (opReturn *OpReturn) createRawTransaction() (err error) {
 		tCreateTxUnSpent["vout"] = unspent.Vout
 		createTxUnSpents = append(createTxUnSpents, tCreateTxUnSpent)
 	}
-
-	tCreateTxData := make(map[string]interface{})
-	tCreateTxData["data"] = opReturn.ReceiptHex
-	tCreateTxData[opReturn.Address] = opReturn.AmountBalanceUsedUnspends
-
-	jsonRpcBytes, err := json.Marshal(JsonRpc{
-		JsonRpc: "1.0",
-		ID:      "GoBitcoinOpReturn",
-		Method:  "createrawtransaction",
-		Params:  []interface{}{createTxUnSpents, tCreateTxData},
-	})
+	opReturn.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.Address, opReturn.AmountBalanceUsedUnspends, opReturn.ReceiptHex)
 	if err != nil {
-		err = fmt.Errorf("@createRawTransaction: %s", err)
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
 	}
 
-	body, err := opReturn.requestJsonRpc(jsonRpcBytes)
-	if err != nil {
-		err = fmt.Errorf("@createRawTransaction: %s", err)
-		return
-	}
-
-	type resultCreateRaxTx struct {
-		RawTx string `json:"result"`
-	}
-	result := resultCreateRaxTx{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		err = fmt.Errorf("@createRawTransaction(): %s", err)
-		return
-	}
-
-	opReturn.RawTx = result.RawTx
-
-	return
-}
-
-func (opReturn *OpReturn) dumpPrivateKey() (err error) {
-
-	jsonRpcBytes, err := json.Marshal(JsonRpc{
-		JsonRpc: "1.0",
-		ID:      "GoBitcoinOpReturn",
-		Method:  "dumpprivkey",
-		Params:  []interface{}{opReturn.Address},
-	})
-	if err != nil {
-		err = fmt.Errorf("@dumpPrivateKey: %s", err)
-		return
-	}
-
-	body, err := opReturn.requestJsonRpc(jsonRpcBytes)
-	if err != nil {
-		err = fmt.Errorf("@dumpPrivateKey: %s", err)
-		return
-	}
-
-	type resultDumpPrivateKey struct {
-		PrivKey string `json:"result"`
-	}
-	result := resultDumpPrivateKey{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		err = fmt.Errorf("@dumpPrivateKey(): %s", err)
-		return
-	}
-
-	opReturn.PrivKey = result.PrivKey
-
-	return
-}
-
-func (opReturn *OpReturn) SignRawTransactionWithKey() (err error) {
+	// 7. DumpPrivateKey
 	if opReturn.PrivKey == "" {
-		err = opReturn.dumpPrivateKey()
+		opReturn.PrivKey, err = bitcoinCli.DumpPrivateKey(opReturn.Address)
 		if err != nil {
-			err = fmt.Errorf("@SignRawTransactionWithKey(): %s", err)
+			err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 			return
 		}
 	}
 
-	jsonRpcBytes, err := json.Marshal(JsonRpc{
-		JsonRpc: "1.0",
-		ID:      "GoBitcoinOpReturn",
-		Method:  "signrawtransactionwithkey",
-		Params:  []interface{}{opReturn.RawTx, []string{opReturn.PrivKey}},
-	})
+	// 8. SignRawTransactionWithKey
+	opReturn.SignedRawTx, err = bitcoinCli.SignRawTransactionWithKey(opReturn.RawTx, opReturn.PrivKey)
 	if err != nil {
-		err = fmt.Errorf("@SignRawTransactionWithKey(): %s", err)
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
 	}
 
-	body, err := opReturn.requestJsonRpc(jsonRpcBytes)
+	// 9. SendRawTransaction
+	opReturn.OpRetrunTxID, err = bitcoinCli.SendRawTransaction(opReturn.SignedRawTx)
 	if err != nil {
-		err = fmt.Errorf("@SignRawTransactionWithKey(): %s", err)
-		return
-	}
-
-	type signedRawTxInfo struct {
-		Hex      string `json:"hex"`      // (string) the transaction id
-		Complete bool   `json:"complete"` // (numeric) the vout value
-	}
-	type resultSignedRawTxInfo struct {
-		SignedRawTxInfo signedRawTxInfo `json:"result"`
-	}
-
-	tmpBody := string(body)
-	fmt.Printf("%s", tmpBody)
-
-	result := resultSignedRawTxInfo{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		err = fmt.Errorf("@SignRawTransactionWithKey(): %s", err)
-		return
-	}
-
-	opReturn.SignedRawTx = result.SignedRawTxInfo.Hex
-
-	return
-}
-
-func (opReturn *OpReturn) SendRawTransaction() (err error) {
-
-	jsonRpcBytes, err := json.Marshal(JsonRpc{
-		JsonRpc: "1.0",
-		ID:      "GoBitcoinOpReturn",
-		Method:  "sendrawtransaction",
-		Params:  []interface{}{opReturn.SignedRawTx},
-	})
-	if err != nil {
-		err = fmt.Errorf("@SendRawTransaction: %s", err)
-		return
-	}
-
-	body, err := opReturn.requestJsonRpc(jsonRpcBytes)
-	if err != nil {
-		err = fmt.Errorf("@SendRawTransaction: %s", err)
-		return
-	}
-
-	type resultSendRawTx struct {
-		OpReturnTxID string `json:"result"`
-	}
-	result := resultSendRawTx{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		err = fmt.Errorf("@SendRawTransaction(): %s", err)
-		return
-	}
-	opReturn.OpRetrunTxID = result.OpReturnTxID
-	return
-}
-
-func (opReturn *OpReturn) Run() (err error) {
-	if err = opReturn.ListUnspentOfAddress(); err != nil {
-		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
-		return
-	}
-
-	if err = opReturn.calAmountUnspents(); err != nil {
-		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
-		return
-	}
-
-	if err = opReturn.createRawTransaction(); err != nil {
-		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
-		return
-	}
-
-	if err = opReturn.dumpPrivateKey(); err != nil {
-		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
-		return
-	}
-
-	if err = opReturn.SignRawTransactionWithKey(); err != nil {
-		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
-		return
-	}
-
-	if err = opReturn.SendRawTransaction(); err != nil {
-		err = fmt.Errorf("error goBitcoinOpReturn @Run(): %s", err)
+		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
 	}
 
