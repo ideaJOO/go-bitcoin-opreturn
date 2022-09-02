@@ -13,7 +13,7 @@ func TestListUnspentOfAddress(t *testing.T) {
 	opReturn.RpcConnect = "127.0.0.1"
 	opReturn.RpcPort = "18332"
 	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
-	opReturn.ReceiptText = "HELLO ideajoo/go-bitcoin-opreturn!!!!!"
+	opReturn.Message = "HELLO ideajoo/go-bitcoin-opreturn!!!!!"
 
 	err := opReturn.Run()
 	if err != nil {
@@ -46,13 +46,13 @@ func TestConvertHex(t *testing.T) {
 	opReturn.RpcConnect = "127.0.0.1"
 	opReturn.RpcPort = "18332"
 	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
-	opReturn.ReceiptText = "HELLO ideajoo/go-bitcoin-cli-light"
+	opReturn.Message = "HELLO ideajoo/go-bitcoin-cli-light"
 
 	err := opReturn.convertTextToHex()
 	if err != nil {
 		return
 	}
 	println()
-	println(opReturn.ReceiptHex)
+	println(opReturn.MessageHex)
 	println()
 }

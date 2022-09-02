@@ -16,8 +16,8 @@ type OpReturn struct {
 	RpcPort                   string
 	Address                   string
 	PrivKey                   string
-	ReceiptText               string
-	ReceiptHex                string
+	Message                   string
+	MessageHex                string
 	Unspents                  []Unspent
 	Confirmations             int
 	AmountUnspends            float64
@@ -56,7 +56,7 @@ func (opReturn *OpReturn) calAmountUnspents() (err error) {
 }
 
 func (opReturn *OpReturn) convertTextToHex() (err error) {
-	opReturn.ReceiptHex = hex.EncodeToString([]byte(opReturn.ReceiptText))
+	opReturn.MessageHex = hex.EncodeToString([]byte(opReturn.Message))
 	return
 }
 
@@ -159,7 +159,7 @@ func (opReturn *OpReturn) Run() (err error) {
 		tCreateTxUnSpent["vout"] = unspent.Vout
 		createTxUnSpents = append(createTxUnSpents, tCreateTxUnSpent)
 	}
-	opReturn.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.Address, opReturn.AmountBalanceUsedUnspends, opReturn.ReceiptHex)
+	opReturn.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.Address, opReturn.AmountBalanceUsedUnspends, opReturn.MessageHex)
 	if err != nil {
 		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
