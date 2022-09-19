@@ -14,6 +14,7 @@ type OpReturn struct {
 	RpcPW                     string
 	RpcConnect                string
 	RpcPort                   string
+	RpcPath                   string
 	Address                   string
 	PrivKey                   string
 	Message                   string
@@ -95,13 +96,13 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	return
 }
 
-func (opReturn *OpReturn) Run(walletName string) (err error) {
+func (opReturn *OpReturn) Run() (err error) {
 	bitcoinCli := goBitcoinCli.BitcoinRpc{
 		RpcUser:    opReturn.RpcUser,
 		RpcPW:      opReturn.RpcPW,
 		RpcConnect: opReturn.RpcConnect,
 		RpcPort:    opReturn.RpcPort,
-		RpcPath:    fmt.Sprintf("wallet/%s", walletName),
+		RpcPath:    opReturn.RpcPath,
 	}
 
 	// 1. ListUnspent

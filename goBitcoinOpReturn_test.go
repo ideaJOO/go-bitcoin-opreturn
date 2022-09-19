@@ -11,11 +11,12 @@ func TestListUnspentOfAddress(t *testing.T) {
 	opReturn.RpcUser = "ideajoo"
 	opReturn.RpcPW = "ideajoo123"
 	opReturn.RpcConnect = "127.0.0.1"
+	opReturn.RpcPath = fmt.Sprintf("wallet/%s", "test_07")
 	opReturn.RpcPort = "18332"
 	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
 	opReturn.Message = "HELLO ideajoo/go-bitcoin-opreturn!!!!!"
 
-	err := opReturn.Run("test_07")
+	err := opReturn.Run()
 	if err != nil {
 		return
 	}
