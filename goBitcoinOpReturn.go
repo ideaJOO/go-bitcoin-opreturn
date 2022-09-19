@@ -63,7 +63,7 @@ func (opReturn *OpReturn) convertTextToHex() (err error) {
 func (opReturn *OpReturn) calFee() (err error) {
 
 	// TODO: Cal fee by bytes
-	fee := 0.00008000 // Temp Fee
+	fee := 0.00005000 // Temp Fee
 
 	opReturn.Fee = fee
 	tBalance := math.Round((opReturn.AmountUnspends-fee)*100000000) / 100000000
@@ -95,12 +95,13 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	return
 }
 
-func (opReturn *OpReturn) Run() (err error) {
+func (opReturn *OpReturn) Run(walletName string) (err error) {
 	bitcoinCli := goBitcoinCli.BitcoinRpc{
 		RpcUser:    opReturn.RpcUser,
 		RpcPW:      opReturn.RpcPW,
 		RpcConnect: opReturn.RpcConnect,
 		RpcPort:    opReturn.RpcPort,
+		RpcPath:    fmt.Sprintf("wallet/%s", walletName),
 	}
 
 	// 1. ListUnspent

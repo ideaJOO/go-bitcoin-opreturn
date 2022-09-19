@@ -15,7 +15,7 @@ func TestListUnspentOfAddress(t *testing.T) {
 	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
 	opReturn.Message = "HELLO ideajoo/go-bitcoin-opreturn!!!!!"
 
-	err := opReturn.Run()
+	err := opReturn.Run("test_07")
 	if err != nil {
 		return
 	}
