@@ -2,9 +2,11 @@ package gobitcoinopreturn
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	goBitcoinCli "github.com/ideajoo/go-bitcoin-cli-light"
 )
@@ -43,8 +45,19 @@ type JsonRpc struct {
 	Params  []interface{} `json:"params"`
 }
 
-func (opReturn *OpReturn) convertTextToHex() (err error) {
-	opReturn.MessageHex = hex.EncodeToString([]byte(opReturn.Message))
+func convertTextToHex(text string) (hexStr string) {
+	hexStr = hex.EncodeToString([]byte(text))
+	return
+}
+
+func convertHexToText(hexStr string) (readableStr string, err error) {
+	source := make([]byte, hex.DecodedLen(len(hexStr)))
+	_, err = hex.Decode(source, []byte(hexStr))
+	if err != nil {
+		err = fmt.Errorf("@convertHexToText: %s", err)
+		return
+	}
+	readableStr = string(source[:])
 	return
 }
 
@@ -129,7 +142,8 @@ func (opReturn *OpReturn) Run() (err error) {
 	}
 
 	// 5. convertTextToHex
-	if err = opReturn.convertTextToHex(); err != nil {
+	opReturn.MessageHex = convertTextToHex(opReturn.Message)
+	if err != nil {
 		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return
 	}
@@ -351,6 +365,128 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 			payment.PayInfos[payment.Address] = payment.AmountBalanceUsedUnspends // Add payment.PayInfos{payment.Address:AmountBalanceUsedUnspends}
 		}
 	}
+
+	return
+}
+
+type OpReturnReadable struct {
+	BlockHash string
+	BlockTime int64
+	TxID      string
+	Address   string
+	Valid     bool
+	Hex       string `json:",omitempty"`
+	Readable  string `json:",omitempty"`
+}
+
+type OpReturnReadables struct {
+	RpcUser    string
+	RpcPW      string
+	RpcConnect string
+	RpcPort    string
+	RpcPath    string
+	Readables  []OpReturnReadable
+}
+
+func (opReturnReadables *OpReturnReadables) RunInBlockNum(blockNum int64) (err error) {
+
+	bitcoinCli := goBitcoinCli.BitcoinRpc{
+		RpcUser:    opReturnReadables.RpcUser,
+		RpcPW:      opReturnReadables.RpcPW,
+		RpcConnect: opReturnReadables.RpcConnect,
+		RpcPort:    opReturnReadables.RpcPort,
+		RpcPath:    opReturnReadables.RpcPath,
+	}
+
+	blockHash, err := bitcoinCli.GetBlockHash(blockNum)
+	if err != nil {
+		err = fmt.Errorf("@opReturnReadables.RunInBlockNum(): %s", err)
+		return
+	}
+
+	err = opReturnReadables.RunInBlockHash(blockHash)
+	if err != nil {
+		err = fmt.Errorf("@opReturnReadables.RunInBlockNum(): %s", err)
+		return
+	}
+
+	return
+}
+
+func (opReturnReadables *OpReturnReadables) RunInBlockHash(blockHash string) (err error) {
+
+	bitcoinCli := goBitcoinCli.BitcoinRpc{
+		RpcUser:    opReturnReadables.RpcUser,
+		RpcPW:      opReturnReadables.RpcPW,
+		RpcConnect: opReturnReadables.RpcConnect,
+		RpcPort:    opReturnReadables.RpcPort,
+		RpcPath:    opReturnReadables.RpcPath,
+	}
+
+	block, err := bitcoinCli.GetBlock(blockHash)
+	if err != nil {
+		err = fmt.Errorf("@opReturnReadables.RunInBlockHash(): %s", err)
+		return
+	}
+	txids := block["tx"].([]string)
+
+	err = opReturnReadables.RunInTxIDs(txids)
+	if err != nil {
+		err = fmt.Errorf("@opReturnReadables.RunInBlockHash(): %s", err)
+		return
+	}
+	return
+}
+
+func (opReturnReadables *OpReturnReadables) RunInTxIDs(txids []string, onlyShowOpReturnTxIDs ...bool) (err error) {
+
+	bitcoinCli := goBitcoinCli.BitcoinRpc{
+		RpcUser:    opReturnReadables.RpcUser,
+		RpcPW:      opReturnReadables.RpcPW,
+		RpcConnect: opReturnReadables.RpcConnect,
+		RpcPort:    opReturnReadables.RpcPort,
+		RpcPath:    opReturnReadables.RpcPath,
+	}
+
+	onlyShowValid := true // default
+	if len(onlyShowOpReturnTxIDs) > 0 {
+		onlyShowValid = onlyShowOpReturnTxIDs[0]
+	}
+
+	opReturnReadables.Readables = make([]OpReturnReadable, 0)
+	for _, txid := range txids {
+		opReturnReadables.Readables = append(opReturnReadables.Readables, OpReturnReadable{TxID: txid})
+	}
+
+	readableRecord := make([]OpReturnReadable, 0)
+	for _, record := range opReturnReadables.Readables {
+		rawTxInfo, errI := bitcoinCli.GetRawTransaction(record.TxID)
+		if errI != nil {
+			continue
+		}
+
+		record.BlockHash = rawTxInfo["blockhash"].(string)
+		record.BlockTime = rawTxInfo["blocktime"].(int64)
+		record.Valid = false
+		for _, voutInfo := range rawTxInfo["vout"].([]map[string]interface{}) {
+			var scriptPubKeyInfo map[string]string
+			inrec, errII := json.Marshal(voutInfo["scriptPubKey"])
+			if errII != nil {
+				continue
+			}
+			json.Unmarshal(inrec, &scriptPubKeyInfo)
+			asmStr := scriptPubKeyInfo["asm"]
+			if len(asmStr) >= 9 && asmStr[0:9] == "OP_RETURN" {
+				record.Valid = true
+				record.Hex = strings.Split(asmStr, "OP_RETURN ")[1]
+				record.Readable, _ = convertHexToText(record.Hex)
+			}
+		}
+		if !(onlyShowValid && !record.Valid) {
+			readableRecord = append(readableRecord, record)
+		}
+	}
+	opReturnReadables.Readables = readableRecord
 
 	return
 }
