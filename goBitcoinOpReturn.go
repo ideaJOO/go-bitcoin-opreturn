@@ -373,7 +373,7 @@ type OpReturnReadable struct {
 	BlockHash string
 	BlockTime int64
 	TxID      string
-	Address   string
+	Addresses []string
 	Valid     bool
 	Hex       string `json:",omitempty"`
 	Readable  string `json:",omitempty"`
@@ -463,6 +463,30 @@ func (opReturnReadables *OpReturnReadables) RunInTxIDs(txids []string, onlyShowO
 		rawTxInfo, errI := bitcoinCli.GetRawTransaction(record.TxID)
 		if errI != nil {
 			continue
+		}
+
+		record.Addresses = make([]string, 0)
+		for _, vinInfo := range rawTxInfo["vin"].([]map[string]interface{}) {
+
+			vinRawTxInfo, errII := bitcoinCli.GetRawTransaction(vinInfo["txid"].(string))
+			if errII != nil {
+				continue
+			}
+
+			for _, vinVoutInfo := range vinRawTxInfo["vout"].([]map[string]interface{}) {
+				vinVoutInfoN := vinVoutInfo["n"].(int)
+				if vinInfo["vout"].(int) != vinVoutInfoN {
+					continue
+				}
+
+				var scriptPubKeyInfo map[string]string
+				inrec, errIII := json.Marshal(vinVoutInfo["scriptPubKey"])
+				if errIII != nil {
+					continue
+				}
+				json.Unmarshal(inrec, &scriptPubKeyInfo)
+				record.Addresses = append(record.Addresses, scriptPubKeyInfo["address"])
+			}
 		}
 
 		record.BlockHash = rawTxInfo["blockhash"].(string)

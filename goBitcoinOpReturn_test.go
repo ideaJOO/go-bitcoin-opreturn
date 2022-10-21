@@ -78,7 +78,7 @@ func TestOpRetrunReadableTxIDs(t *testing.T) {
 
 	err := opReturnRecords.RunInTxIDs(
 		[]string{"990612a08b69ea5c2b27c1754a728aa5745e87f4afd7589f41c6591d976cd44c", "48bcb4b44f4fca4b3d35ac4c10a16f9e4353b619ca6dc28a903ca09e4136fdfe"},
-		// false,
+		false,
 	)
 	if err != nil {
 		fmt.Printf("\n\n\n%+v\n\n", err)
@@ -98,7 +98,7 @@ func TestOpRetrunRecordsBlockNumber(t *testing.T) {
 	opReturnRecords.RpcPath = fmt.Sprintf("wallet/%s", "test_07")
 	opReturnRecords.RpcPort = "18332"
 
-	err := opReturnRecords.RunInBlockNum(2377224)
+	err := opReturnRecords.RunInBlockNum(2376040)
 	if err != nil {
 		fmt.Printf("\n\n\n%+v\n\n", err)
 		return
@@ -117,7 +117,7 @@ func TestOpRetrunRecordsBlockHash(t *testing.T) {
 	opReturnRecords.RpcPath = fmt.Sprintf("wallet/%s", "test_07")
 	opReturnRecords.RpcPort = "18332"
 
-	err := opReturnRecords.RunInBlockHash("00000000a363fb45c720d87e0390787ecec2f3bcd62fdd3f97239fec9312d439")
+	err := opReturnRecords.RunInBlockHash("0000000081bfd8e5c0bf200f89bd2cf4be19816469624a4a09096edda5927ccc")
 	if err != nil {
 		fmt.Printf("\n\n\n%+v\n\n", err)
 		return
