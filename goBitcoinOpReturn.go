@@ -19,6 +19,7 @@ type OpReturn struct {
 	RpcPath                   string
 	Address                   string
 	PrivKey                   string
+	PayInfos                  map[string]float64
 	Message                   string
 	MessageHex                string
 	Unspents                  []Unspent
@@ -76,6 +77,13 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		return opReturn.Unspents[i].Amount > opReturn.Unspents[j].Amount
 	})
 
+	payValueExtra := 0.0
+	countExtra := 0
+	for _, feeVal := range opReturn.PayInfos {
+		payValueExtra += feeVal
+		countExtra += 1
+	}
+
 	opReturn.Fee = -1.0
 	sumAmountTemp := 0.0
 	countInUnspents := 0
@@ -88,18 +96,29 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 
 		sumAmountTemp += unspent.Amount
 
-		tFee := calFee(countInUnspents, 2)
-		if sumAmountTemp >= tFee {
+		// case 1.
+		// Balance is 0, so did not need balance_tx
+		tCountTxOuts := 1 + countExtra //  1(opreturn_data_tx) + extra_tx
+		tFee := calFee(countInUnspents, tCountTxOuts)
+		if sumAmountTemp == tFee+payValueExtra {
+			opReturn.Fee = tFee
+			break
+		}
+
+		// case 2.
+		tCountTxOuts = 1 + countExtra + 1 //  1(opreturn_data_tx) + extra_tx + 1(balance_tx)
+		tFee = calFee(countInUnspents, tCountTxOuts)
+		if sumAmountTemp >= tFee+payValueExtra {
 			opReturn.Fee = tFee
 			break
 		}
 	}
 	if opReturn.Fee <= 0.0 {
-		err = fmt.Errorf("@selectUnspentsForSend(): not sufficient: sumUnspentAmount[%f] < fee[%f]", sumAmountTemp, opReturn.Fee)
+		err = fmt.Errorf("@selectUnspentsForSend(): not sufficient: sumUnspentAmount[%f] < fee[%f] + payValueExtra[%f]", sumAmountTemp, opReturn.Fee, payValueExtra)
 		return
 	}
 
-	opReturn.AmountBalanceUsedUnspends = math.Round((sumAmountTemp-opReturn.Fee)*100000000) / 100000000
+	opReturn.AmountBalanceUsedUnspends = math.Round((sumAmountTemp-opReturn.Fee-payValueExtra)*100000000) / 100000000
 	return
 }
 
@@ -110,6 +129,10 @@ func (opReturn *OpReturn) Run() (err error) {
 		RpcConnect: opReturn.RpcConnect,
 		RpcPort:    opReturn.RpcPort,
 		RpcPath:    opReturn.RpcPath,
+	}
+
+	if opReturn.PayInfos == nil {
+		opReturn.PayInfos = make(map[string]float64)
 	}
 
 	// 1. ListUnspent
@@ -160,7 +183,8 @@ func (opReturn *OpReturn) Run() (err error) {
 		createTxUnSpents = append(createTxUnSpents, tCreateTxUnSpent)
 	}
 
-	opReturn.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, map[string]float64{opReturn.Address: opReturn.AmountBalanceUsedUnspends}, opReturn.MessageHex)
+	opReturn.PayInfos[opReturn.Address] = opReturn.AmountBalanceUsedUnspends // add balance-pay-info
+	opReturn.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.PayInfos, opReturn.MessageHex)
 	if err != nil {
 		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
 		return

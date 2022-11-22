@@ -14,13 +14,13 @@ func TestPayment(t *testing.T) {
 	payment.RpcConnect = "127.0.0.1"
 	payment.RpcPath = fmt.Sprintf("wallet/%s", "test_07")
 	payment.RpcPort = "18332"
-	payment.Address = "tb1qvgucupwvjs5gjr4adljstwvak6749hqmztzye9" // 0.0010521
+	payment.Address = "tb1qtc7nhjtqkkghvzc62gxf2crjf6fd9jde007juu" // 0.0010521
 
 	payment.PayInfos = make(map[string]float64)
 
-	payment.PayInfos["tb1qmhqe8pr06v0mefelardj4h6hkq095e5dh72mv3"] = 0.0001
-	payment.PayInfos["tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"] = 0.0001
-	payment.PayInfos["tb1qtc7nhjtqkkghvzc62gxf2crjf6fd9jde007juu"] = -1
+	payment.PayInfos["tb1q3ydn9yendycv2dgxyqd6zddyaazf4xy4fdmutl"] = 0.00013
+	// payment.PayInfos["tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"] = 0.0001
+	// payment.PayInfos["tb1qtc7nhjtqkkghvzc62gxf2crjf6fd9jde007juu"] = -1
 
 	err := payment.Run()
 	if err != nil {
@@ -41,7 +41,11 @@ func TestOpRetrun(t *testing.T) {
 	opReturn.RpcPath = fmt.Sprintf("wallet/%s", "test_07")
 	opReturn.RpcPort = "18332"
 	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
-	opReturn.Message = "HELLO ideajoo/go-bitcoin-opreturn aaaa!!@"
+	opReturn.Message = "HELLO ideajoo/go-bitcoin-opreturn test1234_2"
+
+	opReturn.PayInfos = make(map[string]float64)
+	opReturn.PayInfos["tb1qmhqe8pr06v0mefelardj4h6hkq095e5dh72mv3"] = 0.000001
+	opReturn.PayInfos["tb1qvgucupwvjs5gjr4adljstwvak6749hqmztzye9"] = 0.000001
 
 	err := opReturn.Run()
 	if err != nil {
