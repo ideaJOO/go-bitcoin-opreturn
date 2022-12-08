@@ -55,7 +55,7 @@ func convertHexToText(hexStr string) (readableStr string, err error) {
 	source := make([]byte, hex.DecodedLen(len(hexStr)))
 	_, err = hex.Decode(source, []byte(hexStr))
 	if err != nil {
-		err = fmt.Errorf("@convertHexToText: %s", err)
+		err = fmt.Errorf("@hex.Decode(): %v", err)
 		return
 	}
 	readableStr = string(source[:])
@@ -114,7 +114,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		}
 	}
 	if opReturn.Fee <= 0.0 {
-		err = fmt.Errorf("@selectUnspentsForSend(): not sufficient: sumUnspentAmount[%f] < fee[%f] + payValueExtra[%f]", sumAmountTemp, opReturn.Fee, payValueExtra)
+		err = fmt.Errorf("opReturn.Fee <= 0.0: not sufficient: sumUnspentAmount[%f] < fee[%f] + payValueExtra[%f]", sumAmountTemp, opReturn.Fee, payValueExtra)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (opReturn *OpReturn) Run() (err error) {
 	// 1. ListUnspent
 	listUnspents, err := bitcoinCli.ListUnspentOfAddress(opReturn.Address)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.ListUnspentOfAddress('%s'): %v", opReturn.Address, err)
 		return
 	}
 	opReturn.Unspents = make([]Unspent, 0)
@@ -160,14 +160,14 @@ func (opReturn *OpReturn) Run() (err error) {
 
 	// 4. selectUnspentsForSend
 	if err = opReturn.selectUnspentsForSend(); err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		err = fmt.Errorf("@opReturn.selectUnspentsForSend(): %v", err)
 		return
 	}
 
 	// 5. convertTextToHex
 	opReturn.MessageHex = convertTextToHex(opReturn.Message)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		err = fmt.Errorf("@convertTextToHex('%s'): %v", opReturn.Message, err)
 		return
 	}
 
@@ -186,7 +186,7 @@ func (opReturn *OpReturn) Run() (err error) {
 	opReturn.PayInfos[opReturn.Address] = opReturn.AmountBalanceUsedUnspends // add balance-pay-info
 	opReturn.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.PayInfos, opReturn.MessageHex)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.PayInfos, opReturn.MessageHex): %v", err)
 		return
 	}
 
@@ -194,7 +194,7 @@ func (opReturn *OpReturn) Run() (err error) {
 	if opReturn.PrivKey == "" {
 		opReturn.PrivKey, err = bitcoinCli.DumpPrivateKey(opReturn.Address)
 		if err != nil {
-			err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+			err = fmt.Errorf("@bitcoinCli.DumpPrivateKey('%s'): %v", opReturn.Address, err)
 			return
 		}
 	}
@@ -202,14 +202,14 @@ func (opReturn *OpReturn) Run() (err error) {
 	// 8. SignRawTransactionWithKey
 	opReturn.SignedRawTx, err = bitcoinCli.SignRawTransactionWithKey(opReturn.RawTx, opReturn.PrivKey)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.SignRawTransactionWithKey(opReturn.RawTx, opReturn.PrivKey): %v", err)
 		return
 	}
 
 	// 9. SendRawTransaction
 	opReturn.OpRetrunTxID, err = bitcoinCli.SendRawTransaction(opReturn.SignedRawTx)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.SendRawTransaction(opReturn.SignedRawTx): %v", err)
 		return
 	}
 
@@ -246,7 +246,7 @@ func (payment *Payment) Run() (err error) {
 	// 1. ListUnspent
 	listUnspents, err := bitcoinCli.ListUnspentOfAddress(payment.Address)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @payment.Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.ListUnspentOfAddress('%s'): %v", payment.Address, err)
 		return
 	}
 	payment.Unspents = make([]Unspent, 0)
@@ -266,7 +266,7 @@ func (payment *Payment) Run() (err error) {
 
 	// 4. selectUnspentsForSend
 	if err = payment.selectUnspentsForSend(); err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @payment.Run(): %s", err)
+		err = fmt.Errorf("@payment.selectUnspentsForSend(): %v", err)
 		return
 	}
 
@@ -284,7 +284,7 @@ func (payment *Payment) Run() (err error) {
 
 	payment.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, payment.PayInfos, "")
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @payment.Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.CreateRawTransaction(createTxUnSpents, payment.PayInfos, ''): %v", err)
 		return
 	}
 
@@ -292,7 +292,7 @@ func (payment *Payment) Run() (err error) {
 	if payment.PrivKey == "" {
 		payment.PrivKey, err = bitcoinCli.DumpPrivateKey(payment.Address)
 		if err != nil {
-			err = fmt.Errorf("error!!! goBitcoinOpReturn @payment.Run(): %s", err)
+			err = fmt.Errorf("@bitcoinCli.DumpPrivateKey('%s'): %v", payment.Address, err)
 			return
 		}
 	}
@@ -300,14 +300,14 @@ func (payment *Payment) Run() (err error) {
 	// 8. SignRawTransactionWithKey
 	payment.SignedRawTx, err = bitcoinCli.SignRawTransactionWithKey(payment.RawTx, payment.PrivKey)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @payment.Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.SignRawTransactionWithKey(payment.RawTx, payment.PrivKey): %v", err)
 		return
 	}
 
 	// 9. SendRawTransaction
 	payment.PaymentTxID, err = bitcoinCli.SendRawTransaction(payment.SignedRawTx)
 	if err != nil {
-		err = fmt.Errorf("error!!! goBitcoinOpReturn @payment.Run(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.SendRawTransaction(payment.SignedRawTx): %v", err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 	totalAmountCaseCount := 0
 	totalAmountCaseAddress := ""
 	for tAddress, tAmount := range payment.PayInfos {
-		if tAmount < 0.0 {
+		if tAmount < 0.0 { // means case[all of balance amount].
 			totalAmountCaseCount += 1
 			totalAmountCaseAddress = tAddress
 		}
@@ -337,7 +337,7 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 	case 1:
 		hasTotalAmountCase = true
 	default: // more than 2
-		err = fmt.Errorf("@payment.selectUnspentsForSend(): incorrect payment.PayInfos: totalAmountCases")
+		err = fmt.Errorf("incorrect payment.PayInfos: %+v", payment.PayInfos)
 		return
 	}
 
@@ -365,14 +365,14 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 		payment.Fee = calFee(countSelectedUnspents, countPayment)
 		if sumSelectedUnspentsAmount >= payment.Fee+sumPaymentAmount {
 			validSelectedUnspents = true
-			if !hasTotalAmountCase {
+			if !hasTotalAmountCase { // for all of balance-amount
 				break
 			}
 		}
 	}
 
 	if !validSelectedUnspents {
-		err = fmt.Errorf("@payment.selectUnspentsForSend(): not sufficient: sumSelectedUnspentsAmount[%f] < fee[%f]+sumPaymentAmount[%f]", sumSelectedUnspentsAmount, payment.Fee, sumPaymentAmount)
+		err = fmt.Errorf("validSelectedUnspents is false: not sufficient: sumSelectedUnspentsAmount[%f] < fee[%f]+sumPaymentAmount[%f]", sumSelectedUnspentsAmount, payment.Fee, sumPaymentAmount)
 		return
 	}
 
@@ -424,13 +424,13 @@ func (opReturnReadables *OpReturnReadables) RunInBlockNum(blockNum int64) (err e
 
 	blockHash, err := bitcoinCli.GetBlockHash(blockNum)
 	if err != nil {
-		err = fmt.Errorf("@opReturnReadables.RunInBlockNum(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.GetBlockHash(%d): %v", blockNum, err)
 		return
 	}
 
 	err = opReturnReadables.RunInBlockHash(blockHash)
 	if err != nil {
-		err = fmt.Errorf("@opReturnReadables.RunInBlockNum(): %s", err)
+		err = fmt.Errorf("@opReturnReadables.RunInBlockHash(%s): %v", blockHash, err)
 		return
 	}
 
@@ -449,14 +449,14 @@ func (opReturnReadables *OpReturnReadables) RunInBlockHash(blockHash string) (er
 
 	block, err := bitcoinCli.GetBlock(blockHash)
 	if err != nil {
-		err = fmt.Errorf("@opReturnReadables.RunInBlockHash(): %s", err)
+		err = fmt.Errorf("@bitcoinCli.GetBlock(%s): %v", blockHash, err)
 		return
 	}
 	txids := block["tx"].([]string)
 
 	err = opReturnReadables.RunInTxIDs(txids)
 	if err != nil {
-		err = fmt.Errorf("@opReturnReadables.RunInBlockHash(): %s", err)
+		err = fmt.Errorf("@opReturnReadables.RunInTxIDs(txids): txids_%v: %v", txids, err)
 		return
 	}
 	return
