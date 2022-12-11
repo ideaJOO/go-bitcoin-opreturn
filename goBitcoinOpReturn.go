@@ -183,7 +183,9 @@ func (opReturn *OpReturn) Run() (err error) {
 		createTxUnSpents = append(createTxUnSpents, tCreateTxUnSpent)
 	}
 
-	opReturn.PayInfos[opReturn.Address] = opReturn.AmountBalanceUsedUnspends // add balance-pay-info
+	if opReturn.AmountBalanceUsedUnspends > 0.00000000 {
+		opReturn.PayInfos[opReturn.Address] = opReturn.AmountBalanceUsedUnspends // add balance-pay-info
+	}
 	opReturn.RawTx, err = bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.PayInfos, opReturn.MessageHex)
 	if err != nil {
 		err = fmt.Errorf("@bitcoinCli.CreateRawTransaction(createTxUnSpents, opReturn.PayInfos, opReturn.MessageHex): %v", err)
