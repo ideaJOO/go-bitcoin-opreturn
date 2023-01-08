@@ -67,8 +67,15 @@ func calFee(countTxIns int, countTxOuts int) (fee float64) {
 	// 	Overhead	10 	vbytes
 	//  Inputs		148	vbytes x countTxIns
 	//  Outputs		34	vbytes x countTxOuts
-	satFeesPerByte := 5 // TODO : satFeesPerByte
-	fee = float64((10+countTxIns*148+countTxOuts*34)*satFeesPerByte) / 100000000
+
+	//	P2WPKH
+	// 	Overhead	10.5 	vbytes
+	//  Inputs		68	vbytes x countTxIns
+	//  Outputs		31	vbytes x countTxOuts
+
+	satFeesPerByte := 4 // TODO : satFeesPerByte
+	// fee = float64((10+countTxIns*148+countTxOuts*34)*satFeesPerByte) / 100000000                    // P2PKH
+	fee = float64((10.5+float64(countTxIns*68+countTxOuts*31))*float64(satFeesPerByte)) / 100000000 // P2WPKH
 	return
 }
 
