@@ -143,7 +143,7 @@ func (opReturn *OpReturn) Run() (err error) {
 	}
 
 	// 1. ListUnspent
-	listUnspents, err := bitcoinCli.ListUnspentOfAddress(opReturn.Address)
+	listUnspents, err := bitcoinCli.ListUnspentOfAddress(0, 0, []string{opReturn.Address})
 	if err != nil {
 		err = fmt.Errorf("@bitcoinCli.ListUnspentOfAddress('%s'): %v", opReturn.Address, err)
 		return
@@ -253,7 +253,7 @@ func (payment *Payment) Run() (err error) {
 	}
 
 	// 1. ListUnspent
-	listUnspents, err := bitcoinCli.ListUnspentOfAddress(payment.Address)
+	listUnspents, err := bitcoinCli.ListUnspentOfAddress(0, 0, []string{payment.Address})
 	if err != nil {
 		err = fmt.Errorf("@bitcoinCli.ListUnspentOfAddress('%s'): %v", payment.Address, err)
 		return
