@@ -1,12 +1,15 @@
 package gobitcoinopreturn
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	goBitcoinCli "github.com/ideajoo/go-bitcoin-cli-light"
 )
@@ -62,20 +65,31 @@ func convertHexToText(hexStr string) (readableStr string, err error) {
 	return
 }
 
-func calFee(countTxIns int, countTxOuts int) (fee float64) {
-	//	P2PKH
-	// 	Overhead	10 	vbytes
-	//  Inputs		148	vbytes x countTxIns
-	//  Outputs		34	vbytes x countTxOuts
+func calFee(countTxIns int, countTxOuts int, feePerVByte float64, address ...string) (fee float64) {
 
-	//	P2WPKH
-	// 	Overhead	10.5 	vbytes
-	//  Inputs		68	vbytes x countTxIns
-	//  Outputs		31	vbytes x countTxOuts
+	tAddressType := "P2PKH" // Legacy
+	if len(address) > 0 {
+		if len(address[0]) > 4 {
+			if address[0][0:4] == "bc1q" {
+				tAddressType = "P2WPKH"
+			}
+		}
+	}
+	switch tAddressType {
+	case "P2WPKH":
+		//	P2WPKH
+		// 	Overhead	10.5 	vbytes
+		//  Inputs		68	vbytes x countTxIns
+		//  Outputs		31	vbytes x countTxOuts
+		fee = math.Ceil((10.5+float64(countTxIns*68+countTxOuts*31))*feePerVByte) / 100000000.0
+	default:
+		//	P2PKH (Legacy)
+		// 	Overhead	10 	vbytes
+		//  Inputs		148	vbytes x countTxIns
+		//  Outputs		34	vbytes x countTxOuts
+		fee = math.Ceil((10.0+float64(countTxIns*148+countTxOuts*34))*feePerVByte) / 100000000.0
+	}
 
-	satFeesPerByte := 4 // TODO : satFeesPerByte
-	// fee = float64((10+countTxIns*148+countTxOuts*34)*satFeesPerByte) / 100000000                    // P2PKH
-	fee = float64((10.5+float64(countTxIns*68+countTxOuts*31))*float64(satFeesPerByte)) / 100000000 // P2WPKH
 	return
 }
 
@@ -94,6 +108,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	opReturn.Fee = -1.0
 	sumAmountTemp := 0.0
 	countInUnspents := 0
+	feePerVByte := getFeePerVByte()
 	for i, unspent := range opReturn.Unspents {
 		if unspent.Confirmations < opReturn.Confirmations {
 			continue
@@ -106,7 +121,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		// case 1.
 		// Balance is 0, so did not need balance_tx
 		tCountTxOuts := 1 + countExtra //  1(opreturn_data_tx) + extra_tx
-		tFee := calFee(countInUnspents, tCountTxOuts)
+		tFee := calFee(countInUnspents, tCountTxOuts, feePerVByte, opReturn.Address)
 		if sumAmountTemp == tFee+payValueExtra {
 			opReturn.Fee = tFee
 			break
@@ -114,7 +129,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 
 		// case 2.
 		tCountTxOuts = 1 + countExtra + 1 //  1(opreturn_data_tx) + extra_tx + 1(balance_tx)
-		tFee = calFee(countInUnspents, tCountTxOuts)
+		tFee = calFee(countInUnspents, tCountTxOuts, feePerVByte, opReturn.Address)
 		if sumAmountTemp >= tFee+payValueExtra {
 			opReturn.Fee = tFee
 			break
@@ -361,6 +376,7 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 	sumSelectedUnspentsAmount := 0.0
 	countSelectedUnspents := 0
 	validSelectedUnspents := false
+	feePerVByte := getFeePerVByte()
 	for i, unspent := range payment.Unspents {
 
 		if unspent.Confirmations < payment.Confirmations {
@@ -371,7 +387,7 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 		payment.Unspents[i].Expected = true
 		sumSelectedUnspentsAmount += unspent.Amount
 		countSelectedUnspents += 1
-		payment.Fee = calFee(countSelectedUnspents, countPayment)
+		payment.Fee = calFee(countSelectedUnspents, countPayment, feePerVByte, payment.Address)
 		if sumSelectedUnspentsAmount >= payment.Fee+sumPaymentAmount {
 			validSelectedUnspents = true
 			if !hasTotalAmountCase { // for all of balance-amount
@@ -545,5 +561,62 @@ func (opReturnReadables *OpReturnReadables) RunInTxIDs(txids []string, onlyShowO
 	}
 	opReturnReadables.Readables = readableRecord
 
+	return
+}
+
+func getFeePerVByte() (fee float64) {
+
+	fee = 3.5 // default
+	maxLimitFee := 7.0
+
+	remoteFee, _ := remoteFeePerVByte()
+
+	if remoteFee == 0.0 {
+		return
+	}
+	if remoteFee == 1.0 {
+		fee = 1.9
+		return
+	}
+	if remoteFee > maxLimitFee {
+		fee = maxLimitFee
+		return
+	}
+	fee = remoteFee
+	return
+}
+
+func remoteFeePerVByte() (remoteFee float64, err error) {
+
+	type CurrentFee struct {
+		FastestFee  float64 `json:"fastestFee"`
+		HalfHourFee float64 `json:"halfHourFee"`
+		HourFee     float64 `json:"hourFee"`
+		EconomyFee  float64 `json:"economyFee"`
+		MinimumFee  float64 `json:"minimumFee"`
+	}
+
+	tURL := "https://mempool.space/api/v1/fees/recommended"
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1300) // TimeOut 1.3(sec)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tURL, nil)
+	if err != nil {
+		return
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer res.Body.Close()
+
+	cFee := CurrentFee{}
+	err = json.NewDecoder(res.Body).Decode(&cFee)
+	if err != nil {
+		return
+	}
+	// fmt.Println(cFee.FastestFee, cFee.HalfHourFee, cFee.HourFee, cFee.EconomyFee, cFee.MinimumFee)
+
+	remoteFee = cFee.HalfHourFee
 	return
 }
