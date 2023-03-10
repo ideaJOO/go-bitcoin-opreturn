@@ -566,22 +566,28 @@ func (opReturnReadables *OpReturnReadables) RunInTxIDs(txids []string, onlyShowO
 
 func getFeePerVByte() (fee float64) {
 
-	fee = 3.5 // default
-	maxLimitFee := 7.0
+	fee = 4.0 // default
+	minLimitFee := 3.0
+	maxLimitFee := 25.0
 
-	remoteFee, _ := remoteFeePerVByte()
+	remoteFee, err := remoteFeePerVByte()
 
-	if remoteFee == 0.0 {
-		return
+	if err != nil {
+		return // default
 	}
-	if remoteFee == 1.0 {
-		fee = 1.9
-		return
+
+	if remoteFee <= 0.0 {
+		return // default
 	}
-	if remoteFee > maxLimitFee {
+	if remoteFee <= minLimitFee {
+		fee = minLimitFee
+		return // min
+	}
+	if remoteFee >= maxLimitFee {
 		fee = maxLimitFee
-		return
+		return // max
 	}
+
 	fee = remoteFee
 	return
 }
