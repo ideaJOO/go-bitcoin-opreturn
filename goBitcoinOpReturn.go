@@ -49,12 +49,12 @@ type JsonRpc struct {
 	Params  []interface{} `json:"params"`
 }
 
-func convertTextToHex(text string) (hexStr string) {
+func ConvertTextToHex(text string) (hexStr string) {
 	hexStr = hex.EncodeToString([]byte(text))
 	return
 }
 
-func convertHexToText(hexStr string) (readableStr string, err error) {
+func ConvertHexToText(hexStr string) (readableStr string, err error) {
 	source := make([]byte, hex.DecodedLen(len(hexStr)))
 	_, err = hex.Decode(source, []byte(hexStr))
 	if err != nil {
@@ -187,7 +187,7 @@ func (opReturn *OpReturn) Run() (err error) {
 	}
 
 	// 5. convertTextToHex
-	opReturn.MessageHex = convertTextToHex(opReturn.Message)
+	opReturn.MessageHex = ConvertTextToHex(opReturn.Message)
 	if err != nil {
 		err = fmt.Errorf("@convertTextToHex('%s'): %v", opReturn.Message, err)
 		return
@@ -552,7 +552,7 @@ func (opReturnReadables *OpReturnReadables) RunInTxIDs(txids []string, onlyShowO
 			if len(asmStr) >= 9 && asmStr[0:9] == "OP_RETURN" {
 				record.Valid = true
 				record.Hex = strings.Split(asmStr, "OP_RETURN ")[1]
-				record.Readable, _ = convertHexToText(record.Hex)
+				record.Readable, _ = ConvertHexToText(record.Hex)
 			}
 		}
 		if !(onlyShowValid && !record.Valid) {
