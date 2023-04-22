@@ -187,10 +187,8 @@ func (opReturn *OpReturn) Run() (err error) {
 	}
 
 	// 5. convertTextToHex
-	opReturn.MessageHex = ConvertTextToHex(opReturn.Message)
-	if err != nil {
-		err = fmt.Errorf("@convertTextToHex('%s'): %v", opReturn.Message, err)
-		return
+	if opReturn.MessageHex == "" {
+		opReturn.MessageHex = ConvertTextToHex(opReturn.Message)
 	}
 
 	// 6. CreateRawTransaction
