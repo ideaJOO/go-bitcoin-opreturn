@@ -27,6 +27,7 @@ type OpReturn struct {
 	MessageHex                string
 	Unspents                  []Unspent
 	Confirmations             int
+	LimitFeePerVByte          float64
 	Fee                       float64
 	AmountBalanceUsedUnspends float64
 	RawTx                     string
@@ -108,7 +109,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	opReturn.Fee = -1.0
 	sumAmountTemp := 0.0
 	countInUnspents := 0
-	feePerVByte := getFeePerVByte()
+	feePerVByte := getFeePerVByte(opReturn.LimitFeePerVByte)
 	for i, unspent := range opReturn.Unspents {
 		if unspent.Confirmations < opReturn.Confirmations {
 			continue
@@ -249,6 +250,7 @@ type Payment struct {
 	PayInfos                  map[string]float64
 	Unspents                  []Unspent
 	Confirmations             int
+	LimitFeePerVByte          float64
 	Fee                       float64
 	AmountBalanceUsedUnspends float64
 	RawTx                     string
@@ -374,7 +376,7 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 	sumSelectedUnspentsAmount := 0.0
 	countSelectedUnspents := 0
 	validSelectedUnspents := false
-	feePerVByte := getFeePerVByte()
+	feePerVByte := getFeePerVByte(payment.LimitFeePerVByte)
 	for i, unspent := range payment.Unspents {
 
 		if unspent.Confirmations < payment.Confirmations {
@@ -562,11 +564,14 @@ func (opReturnReadables *OpReturnReadables) RunInTxIDs(txids []string, onlyShowO
 	return
 }
 
-func getFeePerVByte() (fee float64) {
+func getFeePerVByte(limitFeePerVByte float64) (fee float64) {
 
 	fee = 4.0 // default
 	minLimitFee := 3.0
 	maxLimitFee := 25.0
+	if limitFeePerVByte > minLimitFee {
+		maxLimitFee = limitFeePerVByte
+	}
 
 	remoteFee, err := remoteFeePerVByte()
 
