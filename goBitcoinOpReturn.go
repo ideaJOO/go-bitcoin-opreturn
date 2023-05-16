@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	goBitcoinCli "github.com/ideajoo/go-bitcoin-cli-light"
 )
@@ -55,13 +56,14 @@ func ConvertTextToHex(text string) (hexStr string) {
 	return
 }
 
-func ConvertHexToText(hexStr string) (readableStr string, err error) {
+func ConvertHexToText(hexStr string) (readableStr string, validUTF8 bool, err error) {
 	source := make([]byte, hex.DecodedLen(len(hexStr)))
 	_, err = hex.Decode(source, []byte(hexStr))
 	if err != nil {
 		err = fmt.Errorf("@hex.Decode(): %v", err)
 		return
 	}
+	validUTF8 = utf8.Valid(source)
 	readableStr = string(source[:])
 	return
 }
@@ -552,7 +554,7 @@ func (opReturnReadables *OpReturnReadables) RunInTxIDs(txids []string, onlyShowO
 			if len(asmStr) >= 9 && asmStr[0:9] == "OP_RETURN" {
 				record.Valid = true
 				record.Hex = strings.Split(asmStr, "OP_RETURN ")[1]
-				record.Readable, _ = ConvertHexToText(record.Hex)
+				record.Readable, _, _ = ConvertHexToText(record.Hex)
 			}
 		}
 		if !(onlyShowValid && !record.Valid) {
