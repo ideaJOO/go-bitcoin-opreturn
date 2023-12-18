@@ -111,7 +111,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	opReturn.Fee = -1.0
 	sumAmountTemp := 0.0
 	countInUnspents := 0
-	feePerVByte := getFeePerVByte(opReturn.LimitFeePerVByte)
+	feePerVByte := getFeePerVByte2(opReturn.LimitFeePerVByte)
 	for i, unspent := range opReturn.Unspents {
 		if unspent.Confirmations < opReturn.Confirmations {
 			continue
@@ -378,7 +378,7 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 	sumSelectedUnspentsAmount := 0.0
 	countSelectedUnspents := 0
 	validSelectedUnspents := false
-	feePerVByte := getFeePerVByte(payment.LimitFeePerVByte)
+	feePerVByte := getFeePerVByte2(payment.LimitFeePerVByte)
 	for i, unspent := range payment.Unspents {
 
 		if unspent.Confirmations < payment.Confirmations {
@@ -597,15 +597,48 @@ func getFeePerVByte(limitFeePerVByte float64) (fee float64) {
 	return
 }
 
-func remoteFeePerVByte() (remoteFee float64, err error) {
+func getFeePerVByte2(limitFeePerVByte float64) (fee float64) {
 
-	type CurrentFee struct {
-		FastestFee  float64 `json:"fastestFee"`
-		HalfHourFee float64 `json:"halfHourFee"`
-		HourFee     float64 `json:"hourFee"`
-		EconomyFee  float64 `json:"economyFee"`
-		MinimumFee  float64 `json:"minimumFee"`
+	fee = 10.0 // default
+	minLimitFee := 4.0
+	maxLimitFee := 25.0
+
+	if limitFeePerVByte > minLimitFee {
+		maxLimitFee = limitFeePerVByte
 	}
+
+	remoteFees := RemoteFees{}
+	err := remoteFees.remoteFeePerVByte2()
+	if err != nil {
+		return
+	}
+
+	if remoteFees.FastestFee == remoteFees.MinimumFee {
+		return
+	}
+
+	if remoteFees.HalfHourFee <= minLimitFee {
+		fee = minLimitFee
+		return // min
+	}
+	if remoteFees.HalfHourFee >= maxLimitFee {
+		fee = maxLimitFee
+		return // max
+	}
+
+	fee = remoteFees.HalfHourFee
+	return
+}
+
+type RemoteFees struct {
+	FastestFee  float64 `json:"fastestFee"`
+	HalfHourFee float64 `json:"halfHourFee"`
+	HourFee     float64 `json:"hourFee"`
+	EconomyFee  float64 `json:"economyFee"`
+	MinimumFee  float64 `json:"minimumFee"`
+}
+
+func (remoteFees *RemoteFees) remoteFeePerVByte2() (err error) {
 
 	tURL := "https://mempool.space/api/v1/fees/recommended"
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1300) // TimeOut 1.3(sec)
@@ -621,7 +654,31 @@ func remoteFeePerVByte() (remoteFee float64, err error) {
 	}
 	defer res.Body.Close()
 
-	cFee := CurrentFee{}
+	err = json.NewDecoder(res.Body).Decode(remoteFees)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func remoteFeePerVByte() (remoteFee float64, err error) {
+
+	tURL := "https://mempool.space/api/v1/fees/recommended"
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1300) // TimeOut 1.3(sec)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tURL, nil)
+	if err != nil {
+		return
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer res.Body.Close()
+
+	cFee := RemoteFees{}
 	err = json.NewDecoder(res.Body).Decode(&cFee)
 	if err != nil {
 		return

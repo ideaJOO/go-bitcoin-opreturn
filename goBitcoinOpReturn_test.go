@@ -3,6 +3,7 @@ package gobitcoinopreturn
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -12,13 +13,13 @@ func TestPayment(t *testing.T) {
 	payment.RpcUser = "ideajoo"
 	payment.RpcPW = "ideajoo123"
 	payment.RpcConnect = "127.0.0.1"
-	payment.RpcPath = fmt.Sprintf("wallet/%s", "test_07")
-	payment.RpcPort = "18332"
-	payment.Address = "tb1qtc7nhjtqkkghvzc62gxf2crjf6fd9jde007juu" // 0.0010521
+	payment.RpcPath = fmt.Sprintf("wallet/%s", "satoshibento_order_id")
+	payment.RpcPort = "8332"
+	payment.Address = "17M94TyjrY832rDgyY4cn92qSf697LtWgS" // 0.0010521
 
 	payment.PayInfos = make(map[string]float64)
-
-	payment.PayInfos["tb1q3ydn9yendycv2dgxyqd6zddyaazf4xy4fdmutl"] = 0.00013
+	// 17M94TyjrY832rDgyY4cn92qSf697LtWgS
+	payment.PayInfos["bc1qr3ypk033x9yeqwzfaczd98vckspf22v3nvw73c"] = -1
 	// payment.PayInfos["tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"] = 0.0001
 	// payment.PayInfos["tb1qtc7nhjtqkkghvzc62gxf2crjf6fd9jde007juu"] = -1
 
@@ -38,14 +39,16 @@ func TestOpRetrun(t *testing.T) {
 	opReturn.RpcUser = "ideajoo"
 	opReturn.RpcPW = "ideajoo123"
 	opReturn.RpcConnect = "127.0.0.1"
-	opReturn.RpcPath = fmt.Sprintf("wallet/%s", "test_07")
-	opReturn.RpcPort = "18332"
-	opReturn.Address = "tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"
-	opReturn.Message = "HELLO ideajoo/go-bitcoin-opreturn test1234_2"
+	opReturn.RpcPath = fmt.Sprintf("wallet/%s", "satoshibento_opreturn")
+	opReturn.RpcPort = "8332"
+	opReturn.Address = "bc1qr3ypk033x9yeqwzfaczd98vckspf22v3nvw73c"
+	opReturn.Message = "@satoshibento We are all Satoshi. Trust the bitcoin network."
 
 	opReturn.PayInfos = make(map[string]float64)
-	opReturn.PayInfos["tb1qmhqe8pr06v0mefelardj4h6hkq095e5dh72mv3"] = 0.000001
-	opReturn.PayInfos["tb1qvgucupwvjs5gjr4adljstwvak6749hqmztzye9"] = 0.000001
+
+	opReturn.PayInfos["1EfzPvwXiTH9UeRDUeMCSBHFWhSejKQbWT"] = 0.00001000
+	// payment.PayInfos["tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"] = 0.0001
+	// payment.PayInfos["tb1qtc7nhjtqkkghvzc62gxf2crjf6fd9jde007juu"] = -1
 
 	err := opReturn.Run()
 	if err != nil {
@@ -57,17 +60,46 @@ func TestOpRetrun(t *testing.T) {
 	fmt.Printf("\n\n\n%+v\n\n", string(jsonDump))
 }
 
+func TestConvertHexToUTF8(t *testing.T) {
+	readable, isUTF8, _ := ConvertHexToText("f09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98adf09f98ad20202040717561696e7472656c6c65786274")
+	fmt.Printf("\n===\n[%t]\n%s\n", isUTF8, readable)
+
+	readable, isUTF8, _ = ConvertHexToText("58325bf65d66c74d5bf0cfe8092d7958a62243045abd562802aec51960f27b6c00fb6bf87d5b8c282c286f36d9216ed304e381995c6e239e245b7b7743c39368bec312000c05d10001000c048500503a")
+	fmt.Printf("\n===\n[%t]\n%s\n", isUTF8, readable)
+
+	readable, isUTF8, _ = ConvertHexToText("ec9588eb8595ed9598ec84b8ec9a940a68656c6c6f20f09f918b200a407361746f73686970656e")
+	fmt.Printf("\n===\n[%t]\n%s\n", isUTF8, readable)
+}
+
 func TestConvertHex(t *testing.T) {
 
 	message := "HELLO ideajoo/go-bitcoin-cli-light"
-
-	hexStr := convertTextToHex(message)
-	readable, _ := convertHexToText(hexStr)
+	message = "안녕하세요"
+	message = "こんにちは 안녕하세요 สวัสดีค่ะ "
 
 	println(message)
+	hexStr := ConvertTextToHex(message)
 	println(hexStr)
-	println(readable)
-	println()
+
+	// hexStr = "e38193e38293e381abe381a1e381af"
+	readable, isUTF8, _ := ConvertHexToText(hexStr)
+	fmt.Printf("\n[%t] %s\n", isUTF8, readable)
+	return
+	println("==============")
+	println("==============")
+	println("==============")
+	println("==============")
+
+	message =
+		`@satoshibento  
+-'SatBtI': Digest for Integrity
+-'SatBtRecpt': CID for Receipt`
+	hexStr = ConvertTextToHex(message)
+	println(hexStr)
+	println("407361746f73686962656e746f20200a2d27536174427449273a2044696765737420666f7220496e746567726974790a2d2753617442745265637074273a2043494420666f722052656365697074")
+
+	readable, _, _ = ConvertHexToText(hexStr)
+	println("S@" + strings.ReplaceAll(readable, " ", "!") + "@E")
 
 }
 
@@ -129,4 +161,20 @@ func TestOpRetrunRecordsBlockHash(t *testing.T) {
 
 	jsonDump, _ := json.Marshal(opReturnRecords)
 	fmt.Printf("\n\n\n%+v\n\n", string(jsonDump))
+}
+
+func TestCurrentlyFee(t *testing.T) {
+
+	rFee := RemoteFees{}
+	rFee.remoteFeePerVByte2()
+	fmt.Printf("\n\n%v", rFee)
+	index := 0
+	for {
+		if index > 100 {
+			break
+		}
+		index += 1
+		fmt.Printf("\n%v\n", getFeePerVByte2(40))
+	}
+
 }
