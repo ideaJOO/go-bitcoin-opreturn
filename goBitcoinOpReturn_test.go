@@ -43,6 +43,7 @@ func TestOpRetrun(t *testing.T) {
 	opReturn.RpcPort = "8332"
 	opReturn.Address = "bc1qr3ypk033x9yeqwzfaczd98vckspf22v3nvw73c"
 	opReturn.Message = "@satoshibento We are all Satoshi. Trust the bitcoin network."
+	opReturn.LimitFeePerVByte = 50
 
 	opReturn.PayInfos = make(map[string]float64)
 
@@ -170,11 +171,11 @@ func TestCurrentlyFee(t *testing.T) {
 	fmt.Printf("\n\n%v", rFee)
 	index := 0
 	for {
-		if index > 100 {
+		if index > 5 {
 			break
 		}
 		index += 1
-		fmt.Printf("\n%v\n", getFeePerVByte2(40))
+		fmt.Printf("\n%v\n", getFeePerVByte2(50))
 	}
 
 }

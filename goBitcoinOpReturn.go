@@ -599,9 +599,9 @@ func getFeePerVByte(limitFeePerVByte float64) (fee float64) {
 
 func getFeePerVByte2(limitFeePerVByte float64) (fee float64) {
 
-	fee = 10.0 // default
-	minLimitFee := 4.0
-	maxLimitFee := 25.0
+	minLimitFee := 15.0
+	maxLimitFee := 40.0
+	fee = maxLimitFee // default
 
 	if limitFeePerVByte > minLimitFee {
 		maxLimitFee = limitFeePerVByte
@@ -613,7 +613,7 @@ func getFeePerVByte2(limitFeePerVByte float64) (fee float64) {
 		return
 	}
 
-	if remoteFees.FastestFee == remoteFees.MinimumFee {
+	if (remoteFees.FastestFee == remoteFees.MinimumFee) && remoteFees.MinimumFee > 1.0 {
 		return
 	}
 
