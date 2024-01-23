@@ -78,20 +78,22 @@ func calFee(countTxIns int, countTxOuts int, feePerVByte float64, address ...str
 			}
 		}
 	}
+	vBytes := 0.0
 	switch tAddressType {
 	case "P2WPKH":
 		//	P2WPKH
 		// 	Overhead	10.5 	vbytes
 		//  Inputs		68	vbytes x countTxIns
 		//  Outputs		31	vbytes x countTxOuts
-		fee = math.Ceil((10.5+float64(countTxIns*68+countTxOuts*31))*feePerVByte) / 100000000.0
+		vBytes = (10.5 + float64(countTxIns*68+countTxOuts*31))
 	default:
 		//	P2PKH (Legacy)
 		// 	Overhead	10 	vbytes
 		//  Inputs		148	vbytes x countTxIns
 		//  Outputs		34	vbytes x countTxOuts
-		fee = math.Ceil((10.0+float64(countTxIns*148+countTxOuts*34))*feePerVByte) / 100000000.0
+		vBytes = (10.0 + float64(countTxIns*148+countTxOuts*34))
 	}
+	fee = math.Ceil(vBytes*feePerVByte) / 100000000.0
 
 	return
 }
@@ -123,7 +125,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 
 		// case 1.
 		// Balance is 0, so did not need balance_tx
-		tCountTxOuts := 1 + countExtra //  1(opreturn_data_tx) + extra_tx
+		tCountTxOuts := 2 + countExtra //  1(opreturn_data_tx) + extra_tx
 		tFee := calFee(countInUnspents, tCountTxOuts, feePerVByte, opReturn.Address)
 		if sumAmountTemp == tFee+payValueExtra {
 			opReturn.Fee = tFee
@@ -131,7 +133,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		}
 
 		// case 2.
-		tCountTxOuts = 1 + countExtra + 1 //  1(opreturn_data_tx) + extra_tx + 1(balance_tx)
+		tCountTxOuts = 2 + countExtra + 1 //  1(opreturn_data_tx) + extra_tx + 1(balance_tx)
 		tFee = calFee(countInUnspents, tCountTxOuts, feePerVByte, opReturn.Address)
 		if sumAmountTemp >= tFee+payValueExtra {
 			opReturn.Fee = tFee

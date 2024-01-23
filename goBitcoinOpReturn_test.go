@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+func TestCalFee(t *testing.T) {
+	calFee(1, 2, 40, "bc1q")
+}
+
 func TestPayment(t *testing.T) {
 
 	payment := Payment{}
@@ -42,12 +46,12 @@ func TestOpRetrun(t *testing.T) {
 	opReturn.RpcPath = fmt.Sprintf("wallet/%s", "satoshibento_opreturn")
 	opReturn.RpcPort = "8332"
 	opReturn.Address = "bc1qr3ypk033x9yeqwzfaczd98vckspf22v3nvw73c"
-	opReturn.Message = "@satoshibento We are all Satoshi. Trust the bitcoin network."
+	opReturn.Message = "ios/android App📱\nSatoshiPen:WriteOpReturn✏️\nSatoshiBook:ReadOpReturn📖"
 	opReturn.LimitFeePerVByte = 50
 
 	opReturn.PayInfos = make(map[string]float64)
 
-	opReturn.PayInfos["1EfzPvwXiTH9UeRDUeMCSBHFWhSejKQbWT"] = 0.00001000
+	// opReturn.PayInfos["1EfzPvwXiTH9UeRDUeMCSBHFWhSejKQbWT"] = 0.00001000
 	// payment.PayInfos["tb1q8yu29c59hlmem3hed28f49k4f3kwwkrv4smgkh"] = 0.0001
 	// payment.PayInfos["tb1qtc7nhjtqkkghvzc62gxf2crjf6fd9jde007juu"] = -1
 
