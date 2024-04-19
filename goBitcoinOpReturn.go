@@ -619,16 +619,16 @@ func getFeePerVByte2(limitFeePerVByte float64) (fee float64) {
 		return
 	}
 
-	if remoteFees.HalfHourFee <= minLimitFee {
+	fee = remoteFees.HalfHourFee + (remoteFees.FastestFee-remoteFees.HalfHourFee)*0.5
+	if fee <= minLimitFee {
 		fee = minLimitFee
 		return // min
 	}
-	if remoteFees.HalfHourFee >= maxLimitFee {
+	if fee >= maxLimitFee {
 		fee = maxLimitFee
 		return // max
 	}
 
-	fee = remoteFees.HalfHourFee
 	return
 }
 
