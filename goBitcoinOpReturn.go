@@ -28,7 +28,9 @@ type OpReturn struct {
 	MessageHex                string
 	Unspents                  []Unspent
 	Confirmations             int
-	LimitFeePerVByte          float64
+	SpeedLevelFee             string // Lv1.Min, Lv2.Eco, Lv3.(Eco+1H)/2 Lv4.1H Lv5.(1H+30m)/2 Lv6.30m Lv7.(30m+Fast)/2 Lv8.Fast
+	LimitFeePerVByteMax       float64
+	LimitFeePerVByteMin       float64
 	Fee                       float64
 	AmountBalanceUsedUnspends float64
 	RawTx                     string
@@ -113,7 +115,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	opReturn.Fee = -1.0
 	sumAmountTemp := 0.0
 	countInUnspents := 0
-	feePerVByte := getFeePerVByte2(opReturn.LimitFeePerVByte)
+	feePerVByte := getFeePerVByte3(opReturn.LimitFeePerVByteMin, opReturn.LimitFeePerVByteMax, opReturn.SpeedLevelFee)
 	for i, unspent := range opReturn.Unspents {
 		if unspent.Confirmations < opReturn.Confirmations {
 			continue
@@ -254,7 +256,9 @@ type Payment struct {
 	PayInfos                  map[string]float64
 	Unspents                  []Unspent
 	Confirmations             int
-	LimitFeePerVByte          float64
+	SpeedLevelFee             string // Lv1.Min, Lv2.Eco, Lv3.(Eco+1H)/2 Lv4.1H Lv5.(1H+30m)/2 Lv6.30m Lv7.(30m+Fast)/2 Lv8.Fast
+	LimitFeePerVByteMax       float64
+	LimitFeePerVByteMin       float64
 	Fee                       float64
 	AmountBalanceUsedUnspends float64
 	RawTx                     string
@@ -380,7 +384,7 @@ func (payment *Payment) selectUnspentsForSend() (err error) {
 	sumSelectedUnspentsAmount := 0.0
 	countSelectedUnspents := 0
 	validSelectedUnspents := false
-	feePerVByte := getFeePerVByte2(payment.LimitFeePerVByte)
+	feePerVByte := getFeePerVByte3(payment.LimitFeePerVByteMin, payment.LimitFeePerVByteMax, payment.SpeedLevelFee)
 	for i, unspent := range payment.Unspents {
 
 		if unspent.Confirmations < payment.Confirmations {
@@ -596,6 +600,52 @@ func getFeePerVByte(limitFeePerVByte float64) (fee float64) {
 	}
 
 	fee = remoteFee
+	return
+}
+
+func getFeePerVByte3(limitFeePerVByteMin float64, limitFeePerVByteMax float64, speedType string) (fee float64) {
+
+	fee = 30.0 // default
+
+	remoteFees := RemoteFees{}
+	err := remoteFees.remoteFeePerVByte2()
+	if err != nil {
+		return
+	}
+
+	if (remoteFees.FastestFee == remoteFees.MinimumFee) && remoteFees.MinimumFee > 1.0 {
+		return
+	}
+
+	fee = remoteFees.HalfHourFee
+	switch speedType {
+	case "Level1":
+		fee = remoteFees.MinimumFee
+	case "Level2":
+		fee = remoteFees.EconomyFee
+	case "Level3":
+		fee = (remoteFees.EconomyFee + remoteFees.HourFee) / 2
+	case "Level4":
+		fee = remoteFees.HourFee
+	case "Level5":
+		fee = (remoteFees.HalfHourFee + remoteFees.HourFee) / 2
+	case "Level6":
+		fee = remoteFees.HalfHourFee
+	case "Level7":
+		fee = (remoteFees.FastestFee + remoteFees.HalfHourFee) / 2
+	case "Level8":
+		fee = remoteFees.FastestFee
+	}
+
+	if fee < limitFeePerVByteMin {
+		fee = limitFeePerVByteMin
+		return // min
+	}
+	if fee > limitFeePerVByteMax {
+		fee = limitFeePerVByteMax
+		return // max
+	}
+
 	return
 }
 

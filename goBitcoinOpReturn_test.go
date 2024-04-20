@@ -20,6 +20,9 @@ func TestPayment(t *testing.T) {
 	payment.RpcPath = fmt.Sprintf("wallet/%s", "satoshibento_order_id")
 	payment.RpcPort = "8332"
 	payment.Address = "17M94TyjrY832rDgyY4cn92qSf697LtWgS" // 0.0010521
+	payment.LimitFeePerVByteMax = 50
+	payment.LimitFeePerVByteMin = 10
+	payment.SpeedLevelFee = "Level4"
 
 	payment.PayInfos = make(map[string]float64)
 	// 17M94TyjrY832rDgyY4cn92qSf697LtWgS
@@ -47,7 +50,9 @@ func TestOpRetrun(t *testing.T) {
 	opReturn.RpcPort = "8332"
 	opReturn.Address = "bc1qr3ypk033x9yeqwzfaczd98vckspf22v3nvw73c"
 	opReturn.Message = "ios/android App📱\nSatoshiPen:WriteOpReturn✏️\nSatoshiBook:ReadOpReturn📖"
-	opReturn.LimitFeePerVByte = 50
+	opReturn.LimitFeePerVByteMax = 50
+	opReturn.LimitFeePerVByteMin = 10
+	opReturn.SpeedLevelFee = "Level4"
 
 	opReturn.PayInfos = make(map[string]float64)
 
