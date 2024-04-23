@@ -50,8 +50,9 @@ func TestOpRetrun(t *testing.T) {
 	opReturn.RpcPort = "8332"
 	opReturn.Address = "bc1qr3ypk033x9yeqwzfaczd98vckspf22v3nvw73c"
 	opReturn.Message = "ios/android App📱\nSatoshiPen:WriteOpReturn✏️\nSatoshiBook:ReadOpReturn📖"
-	opReturn.LimitFeePerVByteMax = 50
-	opReturn.LimitFeePerVByteMin = 10
+	opReturn.LimitFeeSatsPerVByteMax = 50
+	opReturn.LimitFeeSatsPerVByteMin = 10
+	opReturn.LimitFeeSats = 8000
 	opReturn.SpeedLevelFee = "Level4"
 
 	opReturn.PayInfos = make(map[string]float64)

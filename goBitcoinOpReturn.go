@@ -28,10 +28,11 @@ type OpReturn struct {
 	MessageHex                string
 	Unspents                  []Unspent
 	Confirmations             int
-	SpeedLevelFee             string // Lv1.Min, Lv2.Eco, Lv3.(Eco+1H)/2 Lv4.1H Lv5.(1H+30m)/2 Lv6.30m Lv7.(30m+Fast)/2 Lv8.Fast
-	LimitFeePerVByteMax       float64
-	LimitFeePerVByteMin       float64
-	Fee                       float64
+	SpeedLevelFee             string  // Lv1.Min, Lv2.Eco, Lv3.(Eco+1H)/2 Lv4.1H Lv5.(1H+30m)/2 Lv6.30m Lv7.(30m+Fast)/2 Lv8.Fast
+	LimitFeeSatsPerVByteMax   float64 // Sats 1
+	LimitFeeSatsPerVByteMin   float64 // Sats 1
+	LimitFeeSats              float64 // Sats 1
+	Fee                       float64 // BTC 0.00000001
 	AmountBalanceUsedUnspends float64
 	RawTx                     string
 	SignedRawTx               string
@@ -115,7 +116,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	opReturn.Fee = -1.0
 	sumAmountTemp := 0.0
 	countInUnspents := 0
-	feePerVByte := getFeePerVByte3(opReturn.LimitFeePerVByteMin, opReturn.LimitFeePerVByteMax, opReturn.SpeedLevelFee)
+	feePerVByte := getFeePerVByte3(opReturn.LimitFeeSatsPerVByteMin, opReturn.LimitFeeSatsPerVByteMax, opReturn.SpeedLevelFee)
 	for i, unspent := range opReturn.Unspents {
 		if unspent.Confirmations < opReturn.Confirmations {
 			continue
@@ -126,8 +127,8 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		sumAmountTemp += unspent.Amount
 
 		// case 1.
-		// Balance is 0, so did not need balance_tx
-		tCountTxOuts := 2 + countExtra //  1(opreturn_data_tx) + extra_tx
+		// when Balance is 0, so did not need balance_tx
+		tCountTxOuts := 1 + countExtra //  1(opreturn_data_tx) + extra_tx
 		tFee := calFee(countInUnspents, tCountTxOuts, feePerVByte, opReturn.Address)
 		if sumAmountTemp == tFee+payValueExtra {
 			opReturn.Fee = tFee
@@ -135,7 +136,7 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		}
 
 		// case 2.
-		tCountTxOuts = 2 + countExtra + 1 //  1(opreturn_data_tx) + extra_tx + 1(balance_tx)
+		tCountTxOuts = 1 + 1 + countExtra //  1(opreturn_data_tx) + 1(balance_tx) + extra_tx
 		tFee = calFee(countInUnspents, tCountTxOuts, feePerVByte, opReturn.Address)
 		if sumAmountTemp >= tFee+payValueExtra {
 			opReturn.Fee = tFee
@@ -145,6 +146,10 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 	if opReturn.Fee <= 0.0 {
 		err = fmt.Errorf("opReturn.Fee <= 0.0: not sufficient: sumUnspentAmount[%f] < fee[%f] + payValueExtra[%f]", sumAmountTemp, opReturn.Fee, payValueExtra)
 		return
+	}
+
+	if opReturn.LimitFeeSats > 1.0 && opReturn.Fee > (opReturn.LimitFeeSats*0.00000001) {
+		opReturn.Fee = opReturn.LimitFeeSats * 0.00000001
 	}
 
 	opReturn.AmountBalanceUsedUnspends = math.Round((sumAmountTemp-opReturn.Fee-payValueExtra)*100000000) / 100000000
