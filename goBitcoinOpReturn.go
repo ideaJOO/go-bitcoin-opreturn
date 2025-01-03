@@ -113,6 +113,24 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		countExtra += 1
 	}
 
+	if opReturn.Fee > 0.00000001 {
+		sumAmountTemp := 0.0
+		countInUnspents := 0
+		for i, unspent := range opReturn.Unspents {
+			if unspent.Confirmations < opReturn.Confirmations {
+				continue
+			}
+			countInUnspents += 1
+			opReturn.Unspents[i].Expected = true
+			sumAmountTemp += unspent.Amount
+			if sumAmountTemp >= opReturn.Fee+payValueExtra {
+				break
+			}
+		}
+		opReturn.AmountBalanceUsedUnspends = math.Round((sumAmountTemp-opReturn.Fee-payValueExtra)*100000000.0) / 100000000.0
+		return
+	}
+
 	opReturn.Fee = -1.0
 	sumAmountTemp := 0.0
 	countInUnspents := 0
@@ -148,11 +166,11 @@ func (opReturn *OpReturn) selectUnspentsForSend() (err error) {
 		return
 	}
 
-	if opReturn.LimitFeeSats > 1.0 && opReturn.Fee > (opReturn.LimitFeeSats*0.00000001) {
-		opReturn.Fee = opReturn.LimitFeeSats * 0.00000001
+	if opReturn.LimitFeeSats > 1.0 && opReturn.Fee > (opReturn.LimitFeeSats/100000000.0) {
+		opReturn.Fee = opReturn.LimitFeeSats / 100000000.0
 	}
+	opReturn.AmountBalanceUsedUnspends = math.Round((sumAmountTemp-opReturn.Fee-payValueExtra)*100000000.0) / 100000000.0
 
-	opReturn.AmountBalanceUsedUnspends = math.Round((sumAmountTemp-opReturn.Fee-payValueExtra)*100000000) / 100000000
 	return
 }
 
